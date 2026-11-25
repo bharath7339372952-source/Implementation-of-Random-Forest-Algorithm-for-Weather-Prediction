@@ -11,141 +11,105 @@ To write a program to predict daily temperature , PM2.5 pollution level and Ener
 2. Anaconda – Python 3.7 Installation / Jupyter notebook
 
 ## Algorithm
-1. 
-2. 
-3. 
-4. 
+1. Import pandas
+2. Import Decision tree classifier
+3. Fit the data in the model
+4. Find the accuracy score
 
 ## Program:
 ```
 /*
 Program to implement the Random Forest Algorithm to predict daily temperature , PM2.5 pollution level and Energy based on environmental sensor data.
-Developed by: 
-RegisterNumber:  
+Developed by: Renita Ireen G
+RegisterNumber: 212225220083 
 */
-```
-```
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
+from sklearn.model_selection import train_test_split
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.metrics import mean_squared_error, r2_score
+
+data = pd.read_csv("weather-station-eee-block_2024_07_13.csv")
+
+
+X = data[['hum', 'pressure', 'wind_speed', 'illumination', 'co2']]
+
+X = X.fillna(X.mean())
+
+
+y_pollution = data['pm2_5'].fillna(data['pm2_5'].mean())
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y_pollution, test_size=0.2, random_state=42
+)
+
+pollution_model = DecisionTreeRegressor(random_state=42, max_depth=5)
+pollution_model.fit(X_train, y_train)
+
+pollution_pred = pollution_model.predict(X_test)
+
+rmse_pollution = np.sqrt(mean_squared_error(y_test, pollution_pred))
+r2_pollution = r2_score(y_test, pollution_pred)
+accuracy_pollution = r2_pollution * 100
+
+print("🏭 Pollution Prediction (PM2.5)")
+print("Accuracy (%):", accuracy_pollution)
+
+print("R2 Score:", r2_pollution)
+
+
+print("RMSE:", rmse_pollution)
+print("R2 Score:", r2_pollution)
 
 
 
-df = pd.read_csv("weather-station-eee-block_2024_07_13.csv")
-df.columns = df.columns.str.strip()
+y_temp = data['tem'].fillna(data['tem'].mean())
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y_temp, test_size=0.2, random_state=42
+)
+
+temp_model = DecisionTreeRegressor(random_state=42, max_depth=5)
+temp_model.fit(X_train, y_train)
+
+temp_pred = temp_model.predict(X_test)
+
+rmse_temp = np.sqrt(mean_squared_error(y_test, temp_pred))
+r2_temp = r2_score(y_test, temp_pred)
+accuracy_temp = r2_temp * 100
+print("\n🌡️ Temperature Prediction")
+print("Accuracy (%):", accuracy_temp)
+print("RMSE:", rmse_temp)
+print("R2 Score:", r2_temp)
 
 
-df['time'] = pd.to_datetime(df['time'])
-df = df.sort_values('time').reset_index(drop=True)
+
+y_energy = data['tsr'].fillna(data['tsr'].mean())
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y_energy, test_size=0.2, random_state=42
+)
+
+energy_model = DecisionTreeRegressor(random_state=42, max_depth=5)
+energy_model.fit(X_train, y_train)
+
+energy_pred = energy_model.predict(X_test)
+
+rmse_energy = np.sqrt(mean_squared_error(y_test, energy_pred))
+r2_energy = r2_score(y_test, energy_pred)
+accuracy_energy = r2_energy * 100
+print("\n⚡ Energy Prediction (TSR)")
+print("Accuracy (%):", accuracy_energy)
 
 
-cols_to_fill = ['tem', 'pm2_5', 'tsr', 'hum', 'pressure', 'wind_speed', 'illumination', 'co2']
-for col in cols_to_fill:
-    if col in df.columns:
-        df[col] = df[col].interpolate(method='linear', limit=10)
-
-
-df['hour'] = df['time'].dt.hour
-df['hour_sin'] = np.sin(2 * np.pi * df['hour'] / 24)
-df['hour_cos'] = np.cos(2 * np.pi * df['hour'] / 24)
-
-
-targets = ['tem', 'pm2_5', 'tsr']
-for t in targets:
-    df[f'{t}_lag1'] = df[t].shift(1)
-    df[f'{t}_lag2'] = df[t].shift(2)
-
-
-processed_df = df.dropna(subset=['tem_lag2', 'pm2_5_lag2', 'tsr_lag2', 'hum', 'pressure']).reset_index(drop=True)
-processed_df.to_csv("combined_processed_weather_data.csv", index=False)
-
-
-features = [
-    'hum', 'pressure', 'wind_speed', 'illumination', 'co2',
-    'hour_sin', 'hour_cos', 'tem_lag1', 'pm2_5_lag1', 'tsr_lag1'
-]
-
-print("--- Feature Engineering Summary ---")
-print(f"Original rows: {len(df)}")
-print(f"Processed rows (after lags/cleaning): {len(processed_df)}")
-print(f"Final high-performance feature set:",features)
-
-split_idx = int(len(processed_df) * 0.8)
-train, test = processed_df.iloc[:split_idx], processed_df.iloc[split_idx:]
-X_train, X_test = train[features], test[features]
-
-models = {}
-results = {}
-
-
-target_meta = {
-    'tem': ('Temperature', '°C', 'red'),
-    'pm2_5': ('Pollution (PM2.5)', 'µg/m³', 'green'),
-    'tsr': ('Energy (Solar Radiation)', 'W/m²', 'orange')
-}
-
-for target in targets:
-    y_train, y_test = train[target], test[target]
-    
-    
-    model = RandomForestRegressor(n_estimators=100, max_depth=12, random_state=42)
-    model.fit(X_train, y_train)
-    
-    preds = model.predict(X_test)
-    models[target] = model
-    
-  
-    results[target] = {
-        'r2': r2_score(y_test, preds),
-        'mae': mean_absolute_error(y_test, preds),
-        'preds': preds,
-        'actual': y_test.values
-    }
-
-
-fig, axes = plt.subplots(3, 2, figsize=(16, 18))
-
-for i, target in enumerate(targets):
-    label, unit, color = target_meta[target]
-    res = results[target]
-    
-    # Plot 1: Actual vs Predicted (Showing the last 150 points for detail)
-    axes[i, 0].plot(res['actual'][-150:], label='Actual', color='black', alpha=0.4, linewidth=2)
-    axes[i, 0].plot(res['preds'][-150:], label='Predicted', color=color, linestyle='--', linewidth=2)
-    axes[i, 0].set_title(f"{label}: Actual vs Predicted\n$R^2$: {res['r2']:.3f} | MAE: {res['mae']:.2f}")
-    axes[i, 0].set_ylabel(unit)
-    axes[i, 0].legend()
-    axes[i, 0].grid(True, alpha=0.3)
-    
-    # Plot 2: Feature Importance (Which sensors influenced this target most?)
-    importances = pd.Series(models[target].feature_importances_, index=features).sort_values()
-    importances.plot(kind='barh', ax=axes[i, 1], color=color, alpha=0.7)
-    axes[i, 1].set_title(f"Key Drivers: {label}")
-
-plt.tight_layout()
-plt.show()
-
-
-last_row = processed_df.iloc[-1]
-latest_data = pd.DataFrame([{
-    'hum': last_row['hum'], 'pressure': last_row['pressure'], 'wind_speed': last_row['wind_speed'],
-    'illumination': last_row['illumination'], 'co2': last_row['co2'],
-    'hour_sin': last_row['hour_sin'], 'hour_cos': last_row['hour_cos'],
-    'tem_lag1': last_row['tem'], 'pm2_5_lag1': last_row['pm2_5'], 'tsr_lag1': last_row['tsr']
-}])
-
-print("\n--- NEXT STEP PREDICTIONS (Using Latest Data) ---")
-for target in targets:
-    pred_val = models[target].predict(latest_data)[0]
-    print(f"Predicted {target_meta[target][0]}: {pred_val:.2f} {target_meta[target][1]}")
+print("RMSE:", rmse_energy)
+print("R2 Score:", r2_energy)
+*/
 ```
-## Output:
-<img width="1413" height="592" alt="image" src="https://github.com/user-attachments/assets/4782d9dc-5256-4029-8059-7601537b3589" />
-<img width="1428" height="483" alt="image" src="https://github.com/user-attachments/assets/da8981a3-c1cd-4906-96cc-ea208b91699c" />
-<img width="1396" height="608" alt="image" src="https://github.com/user-attachments/assets/a99942a4-b506-4292-b9bb-9fa0a1167fdd" />
 
+## Output:
+<img width="526" height="404" alt="Screenshot 2026-05-25 132646" src="https://github.com/user-attachments/assets/b21deb90-e4fc-4d1f-9ea0-f3e50d48e80c" />
 
 
 ## Result:
+To write a program to predict daily temperature , PM2.5 pollution level and Energy based on environmental sensor data using Random Forest Algorithm has been done successfully.
